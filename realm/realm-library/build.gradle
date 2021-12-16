@@ -62,12 +62,12 @@ android {
 
     ndkVersion = project.findProperty('ndkVersion')
 
-    externalNativeBuild {
-        cmake {
-            version = properties.getProperty('CMAKE')
-            path 'src/main/cpp/CMakeLists.txt'
-        }
-    }
+//    externalNativeBuild {
+//        cmake {
+//            version = properties.getProperty('CMAKE')
+//            path 'src/main/cpp/CMakeLists.txt'
+//        }
+//    }
 
     buildTypes {
         debug {
@@ -240,44 +240,44 @@ def betaTag = 'Beta:a:<div style="border-style:solid;border-width:2px">This soft
         'Moreover, classes, constructors, and methods annotated as beta are not ' +
         'considered at production quality, and should be used with care.</div>'
 
-task javadoc(type: Javadoc) {
-    dependsOn("compileObjectServerReleaseJavaWithJavac")
-    source android.sourceSets.objectServer.java.srcDirs
-    source android.sourceSets.main.java.srcDirs
-    source "../../realm-annotations/src/main/java"
-    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
-    options {
-        title = "Realm ${project.version}"
-        memberLevel = JavadocMemberLevel.PUBLIC
-        docEncoding = 'UTF-8'
-        encoding = 'UTF-8'
-        charSet = 'UTF-8'
-        locale = 'en_US'
-        overview = 'src/overview.html'
+//task javadoc(type: Javadoc) {
+//    dependsOn("compileObjectServerReleaseJavaWithJavac")
+//    source android.sourceSets.objectServer.java.srcDirs
+//    source android.sourceSets.main.java.srcDirs
+//    source "../../realm-annotations/src/main/java"
+//    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+//    options {
+//        title = "Realm ${project.version}"
+//        memberLevel = JavadocMemberLevel.PUBLIC
+//        docEncoding = 'UTF-8'
+//        encoding = 'UTF-8'
+//        charSet = 'UTF-8'
+//        locale = 'en_US'
+//        overview = 'src/overview.html'
+//
+//        links "https://docs.oracle.com/javase/7/docs/api/"
+//        links "http://reactivex.io/RxJava/javadoc/"
+//        links "https://developer.android.com/reference"
+//        links "https://www.javadoc.io/doc/org.mongodb/bson/${properties.getProperty('BSON_DEPENDENCY')}/"
+//
+//        tags = [betaTag]
+//    }
+//    exclude '**/internal/**'
+//    exclude '**/BuildConfig.java'
+//    exclude '**/R.java'
+//    exclude '**/*.kt'
+//    doLast {
+//        copy {
+//            from "src/realm-java-overview.png"
+//            into "$buildDir/docs/javadoc"
+//        }
+//    }
+//}
 
-        links "https://docs.oracle.com/javase/7/docs/api/"
-        links "http://reactivex.io/RxJava/javadoc/"
-        links "https://developer.android.com/reference"
-        links "https://www.javadoc.io/doc/org.mongodb/bson/${properties.getProperty('BSON_DEPENDENCY')}/"
-
-        tags = [betaTag]
-    }
-    exclude '**/internal/**'
-    exclude '**/BuildConfig.java'
-    exclude '**/R.java'
-    exclude '**/*.kt'
-    doLast {
-        copy {
-            from "src/realm-java-overview.png"
-            into "$buildDir/docs/javadoc"
-        }
-    }
-}
-
-task javadocJar(type: Jar, dependsOn: javadoc) {
-    classifier = 'javadoc'
-    from javadoc.destinationDir
-}
+//task javadocJar(type: Jar, dependsOn: javadoc) {
+//    classifier = 'javadoc'
+//    from javadoc.destinationDir
+//}
 
 // See https://spotbugs-gradle-plugin.netlify.app/com/github/spotbugs/snom/spotbugsextension
 spotbugs {
@@ -343,7 +343,7 @@ publishing {
             version project.version
             artifact file("${rootDir}/realm-library/build/outputs/aar/realm-android-library-base-release.aar")
             artifact sourcesJar
-            artifact javadocJar
+//            artifact javadocJar
             populatePom(
                     it,
                     'realm-android-library',
@@ -358,7 +358,7 @@ publishing {
             version project.version
             artifact file("${rootDir}/realm-library/build/outputs/aar/realm-android-library-objectServer-release.aar")
             artifact sourcesJar
-            artifact javadocJar
+//            artifact javadocJar
             populatePom(
                     it,
                     'realm-android-library-object-server',
@@ -370,7 +370,7 @@ publishing {
 }
 
 artifacts {
-    archives javadocJar
+//    archives javadocJar
     archives sourcesJar
 }
 
@@ -394,46 +394,46 @@ if (project.hasProperty('dontCleanJniFiles')) {
     clean.dependsOn cleanExternalBuildFiles
 }
 
-project.afterEvaluate {
-    android.libraryVariants.all { variant ->
-        if (project.hasProperty('buildTargetABIs') && project.getProperty('buildTargetABIs').trim().isEmpty()) {
-            variant.externalNativeBuildProviders[0].configure {
-                enabled = false
-            }
-        }
-
-        // all Java files must be compiled before native build
-        // See https://github.com/android/ndk-samples/issues/284
-        android.libraryVariants.all { anotherVariant ->
-            if (variant.flavorName == anotherVariant.flavorName) {
-                variant.externalNativeBuildProviders[0].configure {
-                    dependsOn "compile${anotherVariant.name.capitalize()}JavaWithJavac"
-                }
-            }
-        }
-        // as of android gradle plugin 3.0.0-alpha5, generateJsonModel* triggers native build. Java files must be compiled before them.
-        android.buildTypes.all { buildType ->
-            tasks["generateJsonModel${variant.name.capitalize()}"].dependsOn "compile${variant.flavorName.capitalize()}${buildType.name.capitalize()}JavaWithJavac"
-        }
-
-        // Java compiler to generate JNI headers.
-        def generatedJNIHeadersPath = "$buildDir/intermediates/javac/${variant.name}/jni_include"
-        tasks["compile${variant.name.capitalize()}JavaWithJavac"].with {
-            options.compilerArgs += ["-h", file(generatedJNIHeadersPath)]
-            // Add generated headers into the build cache.
-            outputs.dir(generatedJNIHeadersPath)
-        }
-
-        // Set javaDoc task's classpath with the project compiled classes and its dependencies
-        if(variant.name == "objectServerRelease") {
-            def javaCompile = variant.javaCompileProvider.get()
-            javadoc.classpath += files(
-                    javaCompile.destinationDir, // All intermediate Realm compiled classes
-                    javaCompile.classpath.files // Dependencies
-            )
-        }
-    }
-}
+//project.afterEvaluate {
+//    android.libraryVariants.all { variant ->
+//        if (project.hasProperty('buildTargetABIs') && project.getProperty('buildTargetABIs').trim().isEmpty()) {
+//            variant.externalNativeBuildProviders[0].configure {
+//                enabled = false
+//            }
+//        }
+//
+//        // all Java files must be compiled before native build
+//        // See https://github.com/android/ndk-samples/issues/284
+//        android.libraryVariants.all { anotherVariant ->
+//            if (variant.flavorName == anotherVariant.flavorName) {
+//                variant.externalNativeBuildProviders[0].configure {
+//                    dependsOn "compile${anotherVariant.name.capitalize()}JavaWithJavac"
+//                }
+//            }
+//        }
+//        // as of android gradle plugin 3.0.0-alpha5, generateJsonModel* triggers native build. Java files must be compiled before them.
+//        android.buildTypes.all { buildType ->
+//            tasks["generateJsonModel${variant.name.capitalize()}"].dependsOn "compile${variant.flavorName.capitalize()}${buildType.name.capitalize()}JavaWithJavac"
+//        }
+//
+//        // Java compiler to generate JNI headers.
+//        def generatedJNIHeadersPath = "$buildDir/intermediates/javac/${variant.name}/jni_include"
+//        tasks["compile${variant.name.capitalize()}JavaWithJavac"].with {
+//            options.compilerArgs += ["-h", file(generatedJNIHeadersPath)]
+//            // Add generated headers into the build cache.
+//            outputs.dir(generatedJNIHeadersPath)
+//        }
+//
+//        // Set javaDoc task's classpath with the project compiled classes and its dependencies
+//        if(variant.name == "objectServerRelease") {
+//            def javaCompile = variant.javaCompileProvider.get()
+//            javadoc.classpath += files(
+//                    javaCompile.destinationDir, // All intermediate Realm compiled classes
+//                    javaCompile.classpath.files // Dependencies
+//            )
+//        }
+//    }
+//}
 
 static def getValueFromPropertiesFile(File propFile, String key) {
     if (!propFile.isFile() || !propFile.canRead()) {
